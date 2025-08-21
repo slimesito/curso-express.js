@@ -1,17 +1,12 @@
 [
   {
-    "id": 2,
-    "name": "Jenny Smith",
-    "email": "jenny2025@gmail.com"
+    "id": 3,
+    "name": "Peso Pluma",
+    "email": "pesopluma@gmail.com"
   },
   {
     "id": 2,
-    "name": "Jenny Smith",
-    "email": "jenny2025@gmail.com"
-  },
-  {
-    "id": 2,
-    "name": "Jenny Smith",
-    "email": "jenny2025@gmail.com"
+    "name": "John Doe",
+    "email": "johndoe2019@gmail.com"
   }
 ]

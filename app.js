@@ -1,5 +1,10 @@
 require('dotenv').config();
 const express = require('express');
+
+const LoggerMiddleware = require('./middlewares/logger');
+const errorHandler = require('./middlewares/errorHandler');
+const { validateUser } = require('./utils/validation');
+
 const bodyParser = require('body-parser');
 
 const fs = require('fs');
@@ -9,15 +14,17 @@ const usersFilePath = path.join(__dirname, 'users.json');
 const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(LoggerMiddleware);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 console.log(PORT);
 
 app.get('/', (req, res) => {
     res.send(`
-      <h1>Curso Express.js V3</h1>
-      <p>Esto es una aplicación node.js con express.js</p>
-      <p>Corre en el puerto: ${PORT}</p>
+        <h1>Curso Express.js V3</h1>
+        <p>Esto es una aplicación node.js con express.js</p>
+        <p>Corre en el puerto: ${PORT}</p>
     `);
 });
 
@@ -31,7 +38,7 @@ app.get('/search', (req, res) => {
     const category = req.query.categoria || 'Todas';
 
     res.send(`
-        <h2>Resultados de Busqueda:</h2>
+        <h2>Resultados de búsqueda:</h2>
         <p>Término: ${terms}</p>
         <p>Categoría: ${category}</p>
     `);
@@ -79,6 +86,12 @@ app.post('/users', (req, res) => {
             return res.status(500).json({ error: 'Error con conexión de datos.' });
         }
         const users = JSON.parse(data);
+
+        const validation = validateUser(newUser, users);
+        if (!validation.isValid) {
+            return res.status(400).json({ error: validation.error });
+        }
+
         users.push(newUser);
         fs.writeFile(usersFilePath, JSON.stringify(users, null, 2), err => {
             if (err) {
@@ -90,7 +103,7 @@ app.post('/users', (req, res) => {
 });
 
 app.put('/users/:id', (req, res) => {
-    const userId = parseInt(req.params.id, 10)
+    const userId = parseInt(req.params.id, 10);
     const updatedUser = req.body;
 
     fs.readFile(usersFilePath, 'utf8', (err, data) => {
@@ -98,14 +111,50 @@ app.put('/users/:id', (req, res) => {
             return res.status(500).json({ error: 'Error con conexión de datos.' });
         }
         let users = JSON.parse(data);
-        users = users.map(user => (user.id === userId) ? { ...user, ...updatedUser } : user);
+
+        const userExists = users.some(user => user.id === userId);
+        if (!userExists) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+
+        const validation = validateUser(updatedUser, users);
+        if (!validation.isValid) {
+            return res.status(400).json({ error: validation.error });
+        }
+
+        users = users.map(user =>
+            user.id === userId ? { ...user, ...updatedUser } : user
+        );
         fs.writeFile(usersFilePath, JSON.stringify(users, null, 2), err => {
             if (err) {
-                return res.status(500).json({ error: 'Error al actualizar el usuario.' });
+                return res
+                .status(500)
+                .json({ error: 'Error al actualizar el usuario' });
             }
-            res.json({ message: 'Usuario actualizado', user: { id: userId, ...updatedUser } });
+            res.json(updatedUser);
         });
     });
+});
+
+app.delete('/users/:id', (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    fs.readFile(usersFilePath, 'utf-8', (err, data) => {
+        if (err) {
+            return res.status(500).json({ error: 'Error con conexión de datos.' });
+        }
+        let users = JSON.parse(data);
+        users = users.filter(user => user.id !== userId);
+        fs.writeFile(usersFilePath, JSON.stringify(users, null, 2), err => {
+            if (err) {
+                return res.status(500).json({ error: 'Error al eliminar el usuario.' });
+            }
+            res.status(204).send();
+        });
+    });
+});
+
+app.get('/error', (req, res, next) => {
+    next(new Error('Este es un error de prueba'));
 });
 
 app.listen(PORT, () => {
