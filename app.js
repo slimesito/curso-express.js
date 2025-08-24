@@ -1,9 +1,12 @@
 require('dotenv').config();
 const express = require('express');
+const { PrismaClient } = require('./generated/prisma');
 
 const LoggerMiddleware = require('./middlewares/logger');
 const errorHandler = require('./middlewares/errorHandler');
 const { validateUser } = require('./utils/validation');
+
+const prisma = new PrismaClient();
 
 const bodyParser = require('body-parser');
 
@@ -155,6 +158,16 @@ app.delete('/users/:id', (req, res) => {
 
 app.get('/error', (req, res, next) => {
     next(new Error('Este es un error de prueba'));
+});
+
+app.get('/db-users', async (req, res) => {
+    try {
+        const users = await prisma.user.findMany();
+        res.json(users);
+    } catch (error) {
+        console.error('Error al obtener usuarios de la base de datos:', error);
+        res.status(500).json({ error: 'Error al obtener usuarios de la base de datos.' });
+    }
 });
 
 app.listen(PORT, () => {
